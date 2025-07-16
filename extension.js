@@ -55,29 +55,80 @@ class IpIndicator extends PanelMenu.Button {
             return;
 
         this._scanning = true;
+        this._cachedIps = []; // Clear previous results
         this._buildMenu(this._cachedIps, /*loading*/ true);
 
         const proc = Gio.Subprocess.new(
             ['bash', '-c', `"${script}"`],
-            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE
+            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
         );
 
-        proc.communicate_utf8_async(null, null, (p, res) => {
-            try {
-                const [, stdout] = p.communicate_utf8_finish(res);
-                const ips = stdout.split('\n')
-                    .map(l => l.trim())
-                    .filter(l => /^\d{1,3}(\.\d{1,3}){3}$/.test(l));
+        // Read output line by line to get incremental updates
+        const stdoutStream = proc.get_stdout_pipe();
+        const dataInputStream = Gio.DataInputStream.new(stdoutStream);
 
-                this._cachedIps = ips;
-                this._cacheTime = Date.now();
+        this._readOutputAsync(dataInputStream, proc);
+    }
+
+    _readOutputAsync(dataInputStream, proc) {
+        dataInputStream.read_line_async(GLib.PRIORITY_DEFAULT, null, (stream, res) => {
+            try {
+                const [line] = stream.read_line_finish_utf8(res);
+
+                if (line !== null) {
+                    const trimmed = line.trim();
+
+                    // Check if this line contains a valid IP address
+                    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(trimmed)) {
+                        this._insertIpSorted(trimmed);
+                        this._cacheTime = Date.now();
+                        // Update menu immediately when we get a new IP
+                        this._buildMenu(this._cachedIps, /*loading*/ true);
+                    }
+
+                    // Continue reading next line
+                    this._readOutputAsync(dataInputStream, proc);
+                } else {
+                    // End of stream - wait for process to finish
+                    proc.wait_async(null, (p, waitRes) => {
+                        try {
+                            p.wait_finish(waitRes);
+                        } catch (e) {
+                            logError(e, 'IP‑Scanner subprocess failed');
+                        } finally {
+                            this._scanning = false;
+                            this._buildMenu(this._cachedIps, /*loading*/ false);
+                        }
+                    });
+                }
             } catch (e) {
-                logError(e, 'IP‑Scanner subprocess failed');
-            } finally {
+                logError(e, 'Error reading scan output');
                 this._scanning = false;
                 this._buildMenu(this._cachedIps, /*loading*/ false);
             }
         });
+    }
+
+    _insertIpSorted(ip) {
+        // If it already exists, skip
+        if (this._cachedIps.includes(ip))
+            return;
+
+        // Only take the last octet as the comparison value
+        const lastOctet = s => parseInt(s.split('.').pop(), 10);
+        const value = lastOctet(ip);
+
+        let lo = 0, hi = this._cachedIps.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (lastOctet(this._cachedIps[mid]) < value)
+                lo = mid + 1;
+            else
+                hi = mid;
+        }
+
+        // Insert at the correct sorted position
+        this._cachedIps.splice(lo, 0, ip);
     }
 
     /* ------------- Build the popup menu ------------- */
@@ -91,14 +142,23 @@ class IpIndicator extends PanelMenu.Button {
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         if (loading) {
-            this.menu.addMenuItem(new PopupMenu.PopupMenuItem('Scanning…', { reactive: false }));
+            if (ipArray && ipArray.length > 0) {
+                this.menu.addMenuItem(new PopupMenu.PopupMenuItem(`Scanning… (${ipArray.length} found so far)`, { reactive: false }));
+                // Show any IPs found so far during scanning
+                this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                ipArray.forEach(ip =>
+                    this.menu.addAction(ip, () => Clipboard.set_text(St.ClipboardType.CLIPBOARD, ip))
+                );
+            } else {
+                this.menu.addMenuItem(new PopupMenu.PopupMenuItem('Scanning…', { reactive: false }));
+            }
             return;
         }
 
         const now = Date.now();
         const expired = (now - this._cacheTime) > CACHE_TTL_SEC * 1000;
 
-	// If we have no results yet and cache isn't expired (i.e., never scanned), say so.
+	    // If we have no results yet and cache isn't expired (i.e., never scanned), say so.
         if ((!ipArray || ipArray.length === 0) && !expired) {
             this.menu.addMenuItem(new PopupMenu.PopupMenuItem('No free IP found', { reactive: false }));
             return;
