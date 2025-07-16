@@ -44,7 +44,7 @@ class IpIndicator extends PanelMenu.Button {
         /* -------- Rebuild menu on open; never auto-scan -------- */
         this.menu.connect('open-state-changed', (_menu, isOpen) => {
             if (isOpen)
-                this._buildMenu(this._cachedIps, /*loading*/ false);
+                this._buildMenu(this._cachedIps, /*loading*/ this._scanning);
         });
     }
 

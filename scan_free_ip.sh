@@ -14,8 +14,8 @@ candidates=( $(seq -f "192.168.15.%g" 50 99) )  # Range to probe
 # -I <ip> : source address
 PING_OPTS="-c1 -W0.3"
 
+## ---------- Phase 1: Add alias, test outbound ----------
 reachable=()
-
 for ip in "${candidates[@]}"; do
   # Add a temporary secondary IP alias
   sudo ip addr add "${ip}${netmask}" dev "$iface" label "${iface}:probe" 2>/dev/null \
@@ -30,6 +30,16 @@ for ip in "${candidates[@]}"; do
   # Clean up alias
   sudo ip addr del "${ip}${netmask}" dev "$iface"
 done
+
+## -------- Phase 2: Filter out "silent" hosts --------
+filtered=()
+for ip in "${reachable[@]}"; do
+  if ping -c1 "$ip" 2>&1 | grep -q 'Unreachable'; then
+      # keep: explicit Unreachable diagnostic / drop: pure timeout
+      filtered+=("$ip")
+  fi
+done
+reachable=("${filtered[@]}")
 
 echo "===== Available addresses ====="
 printf '  %s\n' "${reachable[@]}"
