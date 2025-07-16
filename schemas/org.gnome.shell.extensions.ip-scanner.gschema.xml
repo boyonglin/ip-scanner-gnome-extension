@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.ip-scanner" path="/org/gnome/shell/extensions/ip-scanner/">
+    <key name="iface" type="s">
+      <default>'wlp0s20f3'</default>
+      <summary>Network interface</summary>
+    </key>
+    <key name="netmask" type="s">
+      <default>'/24'</default>
+      <summary>Netmask</summary>
+    </key>
+    <key name="gateway" type="s">
+      <default>'192.168.15.1'</default>
+      <summary>Gateway address</summary>
+    </key>
+    <key name="dns-test" type="s">
+      <default>'8.8.8.8'</default>
+      <summary>DNS 測試位址</summary>
+    </key>
+    <key name="candidates" type="as">
+      <default>['192.168.15.50','192.168.15.51',…,'192.168.15.99']</default>
+      <summary>掃描範圍 IP 列表</summary>
+    </key>
+  </schema>
+</schemalist>

@@ -3,5 +3,6 @@
   "name": "IP Scanner Indicator",
   "description": "Displays a list of available static IPs, click to copy",
   "shell-version": ["45", "44", "43", "42"],
+  "settings-schema": "org.gnome.shell.extensions.ip-scanner",
   "version": 1
 }

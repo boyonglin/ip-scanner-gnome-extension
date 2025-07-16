@@ -15,7 +15,7 @@ const ExtensionUtils = imports.misc.extensionUtils;
 
 /* ------------------ Tunable parameters ------------------ */
 const INDICATOR_ICON = 'applications-science-symbolic';
-const ICON_STYLE     = 'padding:0;margin:0;';
+const ICON_STYLE     = 'padding:0; margin:0;';
 const CACHE_TTL_SEC  = 24 * 60 * 60; // 24h cache lifetime
 /* -------------------------------------------------------- */
 
@@ -27,6 +27,15 @@ var IpIndicator = GObject.registerClass(
 class IpIndicator extends PanelMenu.Button {
     _init() {
         super._init(0.5, 'IP Scanner Indicator'); // 0.5 = center-align menu arrow
+
+        // Right-click to open preferences
+        this.connect('button-press-event', (_actor, event) => {
+            if (event.get_button() === 3) {
+                ExtensionUtils.openPrefs();
+                return GLib.SOURCE_STOP;
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
 
         this.add_child(new St.Icon({
             gicon: Gio.icon_new_for_string(INDICATOR_ICON),
@@ -191,4 +200,3 @@ function disable () {
         _indicator = null;
     }
 }
-
