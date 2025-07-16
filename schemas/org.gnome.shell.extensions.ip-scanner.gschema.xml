@@ -1,25 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-  <schema id="org.gnome.shell.extensions.ip-scanner" path="/org/gnome/shell/extensions/ip-scanner/">
+  <schema id="org.gnome.shell.extensions.ip-scanner"
+          path="/org/gnome/shell/extensions/ip-scanner/">
+
+    <!-- Network interface name (e.g. wlp0s20f3, eth0) -->
     <key name="iface" type="s">
       <default>'wlp0s20f3'</default>
       <summary>Network interface</summary>
     </key>
+
+    <!-- CIDR-style netmask string ("/24", "/16", etc.) -->
     <key name="netmask" type="s">
       <default>'/24'</default>
       <summary>Netmask</summary>
     </key>
+
+    <!-- Gateway IPv4 address -->
     <key name="gateway" type="s">
       <default>'192.168.15.1'</default>
       <summary>Gateway address</summary>
     </key>
+
+    <!-- DNS server used for test ping -->
     <key name="dns-test" type="s">
       <default>'8.8.8.8'</default>
-      <summary>DNS 測試位址</summary>
+      <summary>DNS test address</summary>
     </key>
-    <key name="candidates" type="as">
-      <default>['192.168.15.50','192.168.15.51',…,'192.168.15.99']</default>
-      <summary>掃描範圍 IP 列表</summary>
+
+    <!-- Network first three octets + dot" -->
+    <key name="prefix" type="s">
+      <default>'192.168.15.'</default>
+      <summary>Address prefix (first 3 octets + dot)</summary>
     </key>
+
+    <!-- Scan start host (last octet) -->
+    <key name="candidate-start" type="u">
+      <range min="0" max="255"/>
+      <default>50</default>
+      <summary>Start host</summary>
+    </key>
+
+    <!-- Scan end host (last octet) -->
+    <key name="candidate-end" type="u">
+      <range min="0" max="255"/>
+      <default>99</default>
+      <summary>End host</summary>
+    </key>
+
   </schema>
 </schemalist>
