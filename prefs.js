@@ -45,7 +45,7 @@ function fillPreferencesWindow(window) {
     const page = new Adw.PreferencesPage();
     page.margin_top = page.margin_bottom = page.margin_start = page.margin_end = 16;
 
-    const basic = new Adw.PreferencesGroup({ title: 'IP Scanner Settings' });
+    const basic = new Adw.PreferencesGroup({ title: 'Settings' });
 
     function stringRow(key, label) {
         const row = new Adw.ActionRow({ title: label });
