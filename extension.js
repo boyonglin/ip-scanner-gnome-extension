@@ -14,7 +14,7 @@ const Clipboard      = St.Clipboard.get_default();
 const ExtensionUtils = imports.misc.extensionUtils;
 
 /* ------------------ Tunable parameters ------------------ */
-const INDICATOR_ICON = 'applications-science-symbolic';
+const INDICATOR_ICON = 'applications-internet-symbolic';
 const ICON_STYLE     = 'padding:0; margin:0;';
 const CACHE_TTL_SEC  = 24 * 60 * 60; // 24h cache lifetime
 /* -------------------------------------------------------- */

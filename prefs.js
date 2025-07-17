@@ -1,4 +1,4 @@
-// prefs.js - GNOME 42+ (libadwaita) Preferences UI (clean, English labels)
+// prefs.js - GNOME 42+ (libadwaita) Preferences UI
 const ExtensionUtils = imports.misc.extensionUtils;
 const { Gio, Gtk } = imports.gi;
 let Adw = null;
@@ -39,13 +39,12 @@ function fillPreferencesWindow(window) {
     if (!(Adw && window instanceof Adw.PreferencesWindow))
         return;
 
-
     settings = _getSettings();
 
     const page = new Adw.PreferencesPage();
     page.margin_top = page.margin_bottom = page.margin_start = page.margin_end = 16;
 
-    const basic = new Adw.PreferencesGroup({ title: 'Settings' });
+    const basic = new Adw.PreferencesGroup({ title: 'Preferences' });
 
     function stringRow(key, label) {
         const row = new Adw.ActionRow({ title: label });
@@ -93,7 +92,7 @@ function fillPreferencesWindow(window) {
     basic.add(ifaceRow());
     basic.add(stringRow('netmask',  'Netmask'));
     basic.add(stringRow('gateway',  'Gateway'));
-    basic.add(stringRow('dns-test', 'DNS'));
+    basic.add(stringRow('dns', 'DNS'));
 
     const addr = new Adw.PreferencesGroup({ title: 'Address' });
 

@@ -22,7 +22,7 @@
     </key>
 
     <!-- DNS server used for test ping -->
-    <key name="dns-test" type="s">
+    <key name="dns" type="s">
       <default>'8.8.8.8'</default>
       <summary>DNS test address</summary>
     </key>

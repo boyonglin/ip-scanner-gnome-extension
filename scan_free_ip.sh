@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
-# Scan 192.168.15.50–99 and list usable static IP addresses
-# ------------------ User parameters ------------------
-iface="wlp0s20f3"      # Network interface name (check via: ip -br link)
-netmask="/24"          # Netmask 255.255.255.0
-gateway="192.168.15.1"
-dns_test="8.8.8.8"
-candidates=( $(seq -f "192.168.15.%g" 50 99) )  # Range to probe
+# Scan IP range and list usable static IP addresses
+# ------------------ User parameters (from preferences) ------------------
+SCHEMA="org.gnome.shell.extensions.ip-scanner"
+SCHEMA_DIR="/home/om-adm/.local/share/gnome-shell/extensions/ip-scanner@local/schemas"
+
+# Read settings from GSettings with explicit schema directory
+export GSETTINGS_SCHEMA_DIR="$SCHEMA_DIR"
+iface=$(gsettings get "$SCHEMA" iface | tr -d "'" | tr -d '"')
+netmask=$(gsettings get "$SCHEMA" netmask | tr -d "'" | tr -d '"')
+gateway=$(gsettings get "$SCHEMA" gateway | tr -d "'" | tr -d '"')
+dns_test=$(gsettings get "$SCHEMA" dns | tr -d "'" | tr -d '"')
+prefix=$(gsettings get "$SCHEMA" prefix | tr -d "'" | tr -d '"')
+start_host=$(gsettings get "$SCHEMA" candidate-start | awk '{print $NF}')
+end_host=$(gsettings get "$SCHEMA" candidate-end | awk '{print $NF}')
+
+# Build candidates array from prefix and range
+candidates=( $(seq -f "${prefix}%g" $start_host $end_host) )
 # ------------------------------------------------
 
 # Ping options
