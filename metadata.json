@@ -1,8 +1,9 @@
 {
   "uuid": "ip-scanner@local",
   "name": "IP Scanner Indicator",
-  "description": "Displays a list of available static IPs",
-  "shell-version": ["42", "43", "44", "45", "46"],
+  "description": "Quickly scans your local network to find available static IP addresses. Ideal for networks with limited IP availability.",
+  "shell-version": ["42"],
+  "version": 2,
   "settings-schema": "org.gnome.shell.extensions.ip-scanner",
-  "version": 1
+  "url": "https://github.com/boyonglin/ip-scanner-gnome-extension"
 }

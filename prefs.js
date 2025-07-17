@@ -1,123 +1,277 @@
-// prefs.js - GNOME 42+ (libadwaita) Preferences UI
+// GNOME Shell extension preferences UI (42+ compatible)
+// ip-scanner@local
+// ------------------------------------------------------------
+
+'use strict';
+
 const ExtensionUtils = imports.misc.extensionUtils;
 const { Gio, Gtk } = imports.gi;
+
+// Try to import Adwaita (available in GNOME 42+)
 let Adw = null;
-try { Adw = imports.gi.Adw; } catch (_) { }
+try {
+    Adw = imports.gi.Adw;
+} catch (_) {
+    // Fallback for older GNOME versions
+}
 
-let settings;
+let settings = null;
 
-// List network interfaces, excluding 'lo'
+// List available network interfaces (excluding loopback)
 function _listIfaces() {
     try {
         const dir = Gio.File.new_for_path('/sys/class/net');
-        const en = dir.enumerate_children('standard::name', Gio.FileQueryInfoFlags.NONE, null);
-        const list = [];
+        const enumerator = dir.enumerate_children(
+            'standard::name',
+            Gio.FileQueryInfoFlags.NONE,
+            null
+        );
+
+        const interfaces = [];
         let info;
-        while ((info = en.next_file(null)) !== null)
-            if (info.get_name() !== 'lo') list.push(info.get_name());
-        en.close(null);
-        return list;
-    } catch { return []; }
+
+        while ((info = enumerator.next_file(null)) !== null) {
+            const name = info.get_name();
+            if (name !== 'lo') {
+                interfaces.push(name);
+            }
+        }
+
+        enumerator.close(null);
+        return interfaces;
+    } catch (e) {
+        logError(e, 'ip-scanner: failed to enumerate /sys/class/net');
+        return [];
+    }
 }
 
-// Load GSettings schema
+// Load and return GSettings for the extension
 function _getSettings() {
-    if (settings) return settings;
+    if (settings) {
+        return settings;
+    }
+
     try {
         return ExtensionUtils.getSettings('org.gnome.shell.extensions.ip-scanner');
     } catch (_) {
+        // Fallback: manually load schema from extension directory
         const Me = ExtensionUtils.getCurrentExtension();
         const schemaDir = Me.dir.get_child('schemas').get_path();
-        const src = Gio.SettingsSchemaSource.new_from_directory(
-            schemaDir, Gio.SettingsSchemaSource.get_default(), false);
-        const obj = src.lookup('org.gnome.shell.extensions.ip-scanner', true);
-        return new Gio.Settings({ settings_schema: obj });
+        const source = Gio.SettingsSchemaSource.new_from_directory(
+            schemaDir,
+            Gio.SettingsSchemaSource.get_default(),
+            false
+        );
+        const schema = source.lookup('org.gnome.shell.extensions.ip-scanner', true);
+        return new Gio.Settings({ settings_schema: schema });
     }
 }
 
-function fillPreferencesWindow(window) {
-    if (!(Adw && window instanceof Adw.PreferencesWindow))
-        return;
+/* ---------------- UI Helper Functions ---------------- */
 
-    settings = _getSettings();
+// Check if a specific Adwaita class is available
+function have(className) {
+    return Adw && Adw[className] !== undefined;
+}
 
-    const page = new Adw.PreferencesPage();
-    page.margin_top = page.margin_bottom = page.margin_start = page.margin_end = 16;
-
-    const basic = new Adw.PreferencesGroup({ title: 'Preferences' });
-
-    function stringRow(key, label) {
+// Create a string input row for the preferences window
+function makeStringRow(label, key) {
+    // Use EntryRow if available (cleaner appearance)
+    if (have('EntryRow')) {
+        const row = new Adw.EntryRow({ title: label });
+        row.text = settings.get_string(key) || '';
+        row.connect('notify::text', widget => {
+            settings.set_string(key, widget.text || '');
+        });
+        return row;
+    } else {
+        // Fallback: ActionRow with embedded Entry
         const row = new Adw.ActionRow({ title: label });
-        const entry = new Gtk.Entry({ text: settings.get_string(key), hexpand: false });
+        const entry = new Gtk.Entry({
+            text: settings.get_string(key) || ''
+        });
+
         entry.set_size_request(200, -1);
-        entry.connect('changed', w => settings.set_string(key, w.get_text() || ''));
+        entry.valign = Gtk.Align.CENTER;
+        entry.margin_top = 2;
+        entry.margin_bottom = 2;
+
         row.add_suffix(entry);
         row.activatable_widget = entry;
+
+        entry.connect('changed', widget => {
+            settings.set_string(key, widget.text || '');
+        });
+
         return row;
     }
+}
 
-    function uintRow(key, label) {
-        const row = new Adw.ActionRow({ title: label });
-        const adj = new Gtk.Adjustment({ lower: 0, upper: 255, step_increment: 1, page_increment: 10 });
-        const spin = new Gtk.SpinButton({ adjustment: adj, digits: 0, climb_rate: 1, hexpand: false });
-        spin.set_size_request(200, -1);
-        spin.set_value(settings.get_uint(key));
-        spin.connect('value-changed', w => settings.set_uint(key, w.get_value_as_int()));
-        row.add_suffix(spin);
-        row.activatable_widget = spin;
-        return row;
+
+// Constants for compact field styling
+const COMPACT_FIELD_HEIGHT = 28;  // Approximate GNOME preferences small field height
+const COMPACT_FIELD_VPAD = 2;     // Vertical padding within rows
+
+// Create a numeric input row for the preferences window
+function makeUintRow(label, key, upper = 255) {
+    // Always use ActionRow + Gtk.SpinButton for consistency
+    const row = new Adw.ActionRow({ title: label });
+
+    const adjustment = new Gtk.Adjustment({
+        lower: 0,
+        upper,
+        step_increment: 1,
+        page_increment: 10,
+    });
+
+    const spinButton = new Gtk.SpinButton({
+        adjustment: adjustment,
+        digits: 0,
+        climb_rate: 1,
+        hexpand: false,
+    });
+
+    // Compact styling adjustments
+    spinButton.set_size_request(200, -1);
+    spinButton.valign = Gtk.Align.CENTER;
+    spinButton.margin_top = COMPACT_FIELD_VPAD;
+    spinButton.margin_bottom = COMPACT_FIELD_VPAD;
+    spinButton.width_chars = 4; // Limit visible character width
+
+    // Add compact CSS class if supported (harmless if not)
+    if (spinButton.add_css_class) {
+        spinButton.add_css_class('compact');
     }
 
-    function ifaceRow() {
+    // Initialize value and connect to settings
+    spinButton.set_value(settings.get_uint(key));
+    spinButton.connect('value-changed', widget => {
+        settings.set_uint(key, widget.get_value_as_int());
+    });
+
+    row.add_suffix(spinButton);
+    row.activatable_widget = spinButton;
+
+    return row;
+}
+
+// Create a network interface selection row
+function makeIfaceRow() {
+    // Get available network interfaces
+    const rawInterfaces = _listIfaces();
+    let interfaces = Array.isArray(rawInterfaces)
+        ? rawInterfaces.filter(s => typeof s === 'string' && s.length)
+        : [];
+
+    if (interfaces.length === 0) {
+        interfaces = ['(none)'];
+    }
+
+    if (have('ComboRow')) {
+        // Modern ComboRow (better appearance)
+        const stringList = new Gtk.StringList();
+        for (const interfaceName of interfaces) {
+            stringList.append(interfaceName);
+        }
+
+        const row = new Adw.ComboRow({
+            title: 'Network Interface',
+            model: stringList,
+            expression: new Gtk.PropertyExpression(Gtk.StringObject, null, 'string'),
+        });
+
+        // Set initial selection
+        const currentInterface = settings.get_string('iface') || '';
+        const index = interfaces.indexOf(currentInterface);
+        row.selected = index >= 0 ? index : 0;
+
+        // Connect to settings
+        row.connect('notify::selected', () => {
+            const selectedItem = row.get_selected_item();
+            if (selectedItem) {
+                settings.set_string('iface', selectedItem.get_string());
+            }
+        });
+
+        return row;
+    } else {
+        // GNOME 42 fallback: ActionRow + Gtk.DropDown
         const row = new Adw.ActionRow({ title: 'Network Interface' });
-        const ifaces = _listIfaces();
-        const list = Gtk.StringList.new(ifaces);
+        const stringList = new Gtk.StringList();
 
-        const dropdown = new Gtk.DropDown({ model: list, hexpand: false });
+        for (const interfaceName of interfaces) {
+            stringList.append(interfaceName);
+        }
+
+        const dropdown = new Gtk.DropDown({
+            model: stringList,
+            hexpand: false
+        });
         dropdown.set_size_request(200, -1);
 
-        let idx = ifaces.indexOf(settings.get_string('iface'));
-        dropdown.set_selected(idx < 0 ? 0 : idx);
+        // Set initial selection
+        const currentInterface = settings.get_string('iface') || '';
+        const index = interfaces.indexOf(currentInterface);
+        dropdown.set_selected(index >= 0 ? index : 0);
 
-        dropdown.connect('notify::selected-item', w => {
-            const strObj = w.get_selected_item();
-            settings.set_string('iface', strObj.get_string());
+        // Connect to settings
+        dropdown.connect('notify::selected-item', widget => {
+            const selectedItem = widget.get_selected_item();
+            if (selectedItem) {
+                settings.set_string('iface', selectedItem.get_string());
+            }
         });
 
         row.add_suffix(dropdown);
         row.activatable_widget = dropdown;
         return row;
     }
+}
 
-    basic.add(ifaceRow());
-    basic.add(stringRow('netmask',  'Netmask'));
-    basic.add(stringRow('gateway',  'Gateway'));
-    basic.add(stringRow('dns', 'DNS'));
+/* ---------------- Main Preferences Window ---------------- */
 
-    const addr = new Adw.PreferencesGroup({ title: 'Address' });
-
-    function prefixRow() {
-        const row   = new Adw.ActionRow({ title: 'Prefix (1.2.3.)' });
-        const entry = new Gtk.Entry({ text: settings.get_string('prefix') || '', hexpand: false });
-        entry.set_size_request(200, -1);
-        entry.connect('changed', w => settings.set_string('prefix', w.get_text() || ''));
-        row.add_suffix(entry);
-        row.activatable_widget = entry;
-        return row;
+// Fill the preferences window with configuration options
+function fillPreferencesWindow(window) {
+    if (!(Adw && window instanceof Adw.PreferencesWindow)) {
+        return;
     }
 
-    addr.add(prefixRow());
-    addr.add(uintRow('candidate-start', 'Start Host (4)'));
-    addr.add(uintRow('candidate-end',   'End Host (4)'));
+    settings = _getSettings();
 
-    page.add(basic);
-    page.add(addr);
+    const page = new Adw.PreferencesPage({
+        margin_top: 16,
+        margin_bottom: 16,
+        margin_start: 16,
+        margin_end: 16,
+    });
+
+    // Basic network settings group
+    const basicGroup = new Adw.PreferencesGroup({ title: 'Network Settings' });
+    basicGroup.add(makeIfaceRow());
+    basicGroup.add(makeStringRow('Netmask', 'netmask'));
+    basicGroup.add(makeStringRow('Gateway', 'gateway'));
+    basicGroup.add(makeStringRow('DNS', 'dns'));
+
+    // IP address scanning range group
+    const addressGroup = new Adw.PreferencesGroup({ title: 'Scanning Range' });
+    addressGroup.add(makeStringRow('IP Prefix (e.g., 192.168.1)', 'prefix'));
+    addressGroup.add(makeUintRow('Start Host Number', 'candidate-start'));
+    addressGroup.add(makeUintRow('End Host Number', 'candidate-end'));
+
+    page.add(basicGroup);
+    page.add(addressGroup);
     window.add(page);
 
     window.default_height = 640;
 }
 
-function init() {}
+/* ---------------- GNOME Shell Extension Entry Points ---------------- */
 
+// Initialize the preferences module
+function init() {
+    // No initialization needed
+}
+
+// Export functions for GNOME Shell
 var init = init;
 var fillPreferencesWindow = fillPreferencesWindow;
