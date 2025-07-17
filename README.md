@@ -6,9 +6,10 @@ This GNOME Shell extension adds an indicator to the top panel that scans for and
 
 -   Scans a configurable range of IP addresses to find free ones.
 -   Adds an indicator to the GNOME Shell top panel.
--   Displays a list of available IPs in a dropdown menu.
+-   Displays a list of available IPs in a dropdown menu, updating incrementally as they are found.
 -   Click-to-copy functionality for easy use.
 -   Caches results for 24 hours to avoid excessive scanning.
+-   Configuration via a preferences dialog.
 
 ## Installation
 
@@ -47,38 +48,33 @@ This GNOME Shell extension adds an indicator to the top panel that scans for and
 
 ## Configuration
 
-The IP range and network interface can be configured by editing the `scan_free_ip.sh` script:
+All configuration is now handled through the extension's preferences window.
 
-```bash
-#!/usr/bin/env bash
-# Scan 192.168.15.50–99 and list usable static IP addresses
-# ------------------ User parameters ------------------
-iface="wlp0s20f3"    # Network interface name (check via: ip -br link)
-netmask="/24"	     # Netmask 255.255.255.0
-gateway="192.168.15.1"
-dns_test="8.8.8.8"
-candidates=( $(seq -f "192.168.15.%g" 50 99) )  # Range to probe
-# ------------------------------------------------
-```
+To access the preferences, open the GNOME Extensions application, find "IP Scanner Indicator," and click the settings icon. You can also right-click the indicator in the top panel.
 
--   `iface`: The name of your network interface (e.g., `eth0`, `wlan0`).
--   `netmask`: The netmask for the IP addresses.
--   `gateway`: The gateway address for your network.
--   `dns_test`: A public DNS server to test for internet connectivity.
--   `candidates`: The range of IP addresses to scan.
+The following options are available:
+
+-   **Network Interface**: The name of your network interface (e.g., `eth0`, `wlan0`).
+-   **Netmask**: The netmask for the IP addresses (e.g., `/24`).
+-   **Gateway**: The gateway address for your network.
+-   **DNS**: A public DNS server to test for internet connectivity.
+-   **IP Prefix**: The prefix for the IP addresses to be scanned (e.g., `192.168.15.`).
+-   **Candidate Start**: The starting number of the IP address range to scan.
+-   **Candidate End**: The ending number of the IP address range to scan.
 
 ## Usage
 
 1.  Click the indicator icon in the top panel.
 2.  Click "Refresh" to start a scan.
-3.  The menu will show "Scanning..." while the scan is in progress.
+3.  The menu will show "Scanning..." and will update incrementally as free IPs are found.
 4.  Once complete, the list of available IPs will be displayed.
 5.  Click on any IP address to copy it to your clipboard.
 
 ## How It Works
 
 -   **`extension.js`**: The main GNOME Shell extension file. It creates the panel indicator and menu. When "Refresh" is clicked, it executes the `scan_free_ip.sh` script.
--   **`scan_free_ip.sh`**: This script performs the network scan. It iterates through the `candidates` list, temporarily assigns each IP to the specified network interface, and then pings the gateway and a public DNS server to check for connectivity.
+-   **`scan_free_ip.sh`**: This script performs the network scan. It reads the configuration from the extension's settings, then iterates through the candidate IPs, temporarily assigns each IP to the specified network interface, and then pings the gateway and a public DNS server to check for connectivity.
+-   **`prefs.js`**: Implements the preferences window for the extension.
 -   **`metadata.json`**: Contains metadata about the extension, such as its name, description, and supported GNOME Shell versions.
 
 ## License
