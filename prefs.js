@@ -1,5 +1,4 @@
-// GNOME Shell extension preferences UI (42+ compatible)
-// ip-scanner@local
+// GNOME Shell extension preferences UI
 // ------------------------------------------------------------
 
 'use strict';
@@ -52,7 +51,7 @@ function have(className) {
 
 // Create a string input row for the preferences window
 function makeStringRow(label, key, settings) {
-    // Use EntryRow if available (cleaner appearance)
+    // Use EntryRow if available
     if (have('EntryRow')) {
         const row = new Adw.EntryRow({ title: label });
         row.text = settings.get_string(key) || '';
