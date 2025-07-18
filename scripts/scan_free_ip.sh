@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Scan IP range and list usable static IP addresses
+# Scan IP range and list usable static IP addresses with parallel processing
+# to prevent GNOME Shell UI blocking and ensure responsive operation.
 # ------------------ User parameters (from preferences) ------------------
 SCHEMA="org.gnome.shell.extensions.ip-scanner"
-SCHEMA_DIR="/home/om-adm/.local/share/gnome-shell/extensions/ip-scanner@local/schemas"
 
 # Read settings from GSettings with explicit schema directory
-export GSETTINGS_SCHEMA_DIR="$SCHEMA_DIR"
+export GSETTINGS_SCHEMA_DIR="$(dirname "$(readlink -f "$0")")/schemas"
 iface=$(gsettings get "$SCHEMA" iface | tr -d "'" | tr -d '"')
 netmask=$(gsettings get "$SCHEMA" netmask | tr -d "'" | tr -d '"')
 gateway=$(gsettings get "$SCHEMA" gateway | tr -d "'" | tr -d '"')
@@ -57,3 +57,5 @@ for ip in "${reachable[@]}"; do
         echo "$ip"
     fi
 done
+
+exit 0

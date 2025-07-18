@@ -20,7 +20,7 @@ const CACHE_TTL_SEC  = 24 * 60 * 60; // 24h cache lifetime
 /* -------------------------------------------------------- */
 
 function _scriptPath() {
-    return `${ExtensionUtils.getCurrentExtension().path}/scan_free_ip.sh`;
+    return `${ExtensionUtils.getCurrentExtension().path}/scripts/scan_free_ip.sh`;
 }
 
 var IpIndicator = GObject.registerClass(

@@ -7,15 +7,8 @@
 const ExtensionUtils = imports.misc.extensionUtils;
 const { Gio, Gtk } = imports.gi;
 
-// Try to import Adwaita (available in GNOME 42+)
-let Adw = null;
-try {
-    Adw = imports.gi.Adw;
-} catch (_) {
-    // Fallback for older GNOME versions
-}
-
-let settings = null;
+// Import Adwaita (GNOME 42+ required)
+const Adw = imports.gi.Adw;
 
 // List available network interfaces (excluding loopback)
 function _listIfaces() {
@@ -47,24 +40,7 @@ function _listIfaces() {
 
 // Load and return GSettings for the extension
 function _getSettings() {
-    if (settings) {
-        return settings;
-    }
-
-    try {
-        return ExtensionUtils.getSettings('org.gnome.shell.extensions.ip-scanner');
-    } catch (_) {
-        // Fallback: manually load schema from extension directory
-        const Me = ExtensionUtils.getCurrentExtension();
-        const schemaDir = Me.dir.get_child('schemas').get_path();
-        const source = Gio.SettingsSchemaSource.new_from_directory(
-            schemaDir,
-            Gio.SettingsSchemaSource.get_default(),
-            false
-        );
-        const schema = source.lookup('org.gnome.shell.extensions.ip-scanner', true);
-        return new Gio.Settings({ settings_schema: schema });
-    }
+    return ExtensionUtils.getSettings('org.gnome.shell.extensions.ip-scanner');
 }
 
 /* ---------------- UI Helper Functions ---------------- */
@@ -75,7 +51,7 @@ function have(className) {
 }
 
 // Create a string input row for the preferences window
-function makeStringRow(label, key) {
+function makeStringRow(label, key, settings) {
     // Use EntryRow if available (cleaner appearance)
     if (have('EntryRow')) {
         const row = new Adw.EntryRow({ title: label });
@@ -113,7 +89,7 @@ const COMPACT_FIELD_HEIGHT = 28;  // Approximate GNOME preferences small field h
 const COMPACT_FIELD_VPAD = 2;     // Vertical padding within rows
 
 // Create a numeric input row for the preferences window
-function makeUintRow(label, key, upper = 255) {
+function makeUintRow(label, key, settings, upper = 255) {
     // Always use ActionRow + Gtk.SpinButton for consistency
     const row = new Adw.ActionRow({ title: label });
 
@@ -156,7 +132,7 @@ function makeUintRow(label, key, upper = 255) {
 }
 
 // Create a network interface selection row
-function makeIfaceRow() {
+function makeIfaceRow(settings) {
     // Get available network interfaces
     const rawInterfaces = _listIfaces();
     let interfaces = Array.isArray(rawInterfaces)
@@ -236,7 +212,7 @@ function fillPreferencesWindow(window) {
         return;
     }
 
-    settings = _getSettings();
+    const settings = _getSettings();
 
     const page = new Adw.PreferencesPage({
         margin_top: 16,
@@ -247,16 +223,16 @@ function fillPreferencesWindow(window) {
 
     // Basic network settings group
     const basicGroup = new Adw.PreferencesGroup({ title: 'Network Settings' });
-    basicGroup.add(makeIfaceRow());
-    basicGroup.add(makeStringRow('Netmask', 'netmask'));
-    basicGroup.add(makeStringRow('Gateway', 'gateway'));
-    basicGroup.add(makeStringRow('DNS', 'dns'));
+    basicGroup.add(makeIfaceRow(settings));
+    basicGroup.add(makeStringRow('Netmask', 'netmask', settings));
+    basicGroup.add(makeStringRow('Gateway', 'gateway', settings));
+    basicGroup.add(makeStringRow('DNS', 'dns', settings));
 
     // IP address scanning range group
     const addressGroup = new Adw.PreferencesGroup({ title: 'Scanning Range' });
-    addressGroup.add(makeStringRow('IP Prefix (e.g., 192.168.1)', 'prefix'));
-    addressGroup.add(makeUintRow('Start Host Number', 'candidate-start'));
-    addressGroup.add(makeUintRow('End Host Number', 'candidate-end'));
+    addressGroup.add(makeStringRow('IP Prefix (e.g., 192.168.1)', 'prefix', settings));
+    addressGroup.add(makeUintRow('Start Host Number', 'candidate-start', settings));
+    addressGroup.add(makeUintRow('End Host Number', 'candidate-end', settings));
 
     page.add(basicGroup);
     page.add(addressGroup);
@@ -265,13 +241,4 @@ function fillPreferencesWindow(window) {
     window.default_height = 640;
 }
 
-/* ---------------- GNOME Shell Extension Entry Points ---------------- */
-
-// Initialize the preferences module
-function init() {
-    // No initialization needed
-}
-
-// Export functions for GNOME Shell
-var init = init;
-var fillPreferencesWindow = fillPreferencesWindow;
+function init() {}
