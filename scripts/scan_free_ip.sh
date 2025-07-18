@@ -3,9 +3,10 @@
 # to prevent GNOME Shell UI blocking and ensure responsive operation.
 # ------------------ User parameters (from preferences) ------------------
 SCHEMA="org.gnome.shell.extensions.ip-scanner"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Read settings from GSettings with explicit schema directory
-export GSETTINGS_SCHEMA_DIR="$(dirname "$(readlink -f "$0")")/schemas"
+export GSETTINGS_SCHEMA_DIR="$(dirname "$SCRIPT_DIR")/schemas"
 iface=$(gsettings get "$SCHEMA" iface | tr -d "'" | tr -d '"')
 netmask=$(gsettings get "$SCHEMA" netmask | tr -d "'" | tr -d '"')
 gateway=$(gsettings get "$SCHEMA" gateway | tr -d "'" | tr -d '"')

@@ -68,7 +68,7 @@ class IpIndicator extends PanelMenu.Button {
         this._buildMenu(this._cachedIps, /*loading*/ true);
 
         const proc = Gio.Subprocess.new(
-            ['bash', '-c', `"${script}"`],
+            [script],
             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
         );
 
