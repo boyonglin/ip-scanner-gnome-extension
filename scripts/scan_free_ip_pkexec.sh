@@ -26,26 +26,18 @@ candidates=( $(seq -f "${prefix}%g" $start_host $end_host) )
 PING_OPTS="-c1 -W0.3 -I"
 
 ## ---------- Phase 1: Add alias, test outbound ----------
-scan_one() {
-    local ip=$1
-    # Add a temporary secondary IP alias
-    sudo ip addr add "${ip}${netmask}" dev "$iface" label "${iface}:probe" 2>/dev/null || return
-
-    # Test gateway and external DNS reachability
-    if ping $PING_OPTS "$ip" "$gateway" &>/dev/null &&
-       ping $PING_OPTS "$ip" "$dns_test" &>/dev/null; then
-        echo "$ip"
-    fi
-
-    # Clean up alias
-    sudo ip addr del "${ip}${netmask}" dev "$iface"
-}
-
-export -f scan_one
-export iface netmask gateway dns_test PING_OPTS
-
-reachable=($(printf '%s\n' "${candidates[@]}" \
-            | xargs -n1 -P $MAX_JOBS -I{} bash -c 'scan_one "$@"' _ {}))
+reachable=($(pkexec bash -c "
+    for ip in ${candidates[*]}; do
+        (
+            ip addr add \"\${ip}${netmask}\" dev \"$iface\" label \"${iface}:probe\" 2>/dev/null && 
+            ping $PING_OPTS \"\$ip\" \"$gateway\" &>/dev/null && 
+            ping $PING_OPTS \"\$ip\" \"$dns_test\" &>/dev/null && 
+            echo \"\$ip\"
+            ip addr del \"\${ip}${netmask}\" dev \"$iface\" 2>/dev/null
+        ) &
+    done
+    wait
+"))
 
 ## -------- Phase 2: Filter out silent hosts --------
 usable=()
