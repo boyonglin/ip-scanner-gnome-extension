@@ -47,5 +47,17 @@
       <summary>End host</summary>
     </key>
 
+    <!-- Cached IP addresses (JSON array) -->
+    <key name="cached-ips" type="s">
+      <default>'[]'</default>
+      <summary>Cached IP addresses</summary>
+    </key>
+
+    <!-- Cache timestamp (milliseconds since epoch) -->
+    <key name="cache-time" type="t">
+      <default>0</default>
+      <summary>Cache timestamp</summary>
+    </key>
+
   </schema>
 </schemalist>

@@ -1,6 +1,4 @@
 // GNOME Shell extension — IP Scanner Indicator
-// Drop both extension.js and scan_free_ip.sh in:
-//   ~/.local/share/gnome-shell/extensions/ip-scanner@local/
 // Set NOPASSWD: sudo visudo -f /etc/sudoers.d/ipscanner
 // ------------------------------------------------------------
 
@@ -28,6 +26,9 @@ class IpIndicator extends PanelMenu.Button {
     _init() {
         super._init(0.5, 'IP Scanner Indicator'); // 0.5 = center-align menu arrow
 
+        // Initialize settings
+        this._settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.ip-scanner');
+
         this.add_child(new St.Icon({
             gicon: Gio.icon_new_for_string(INDICATOR_ICON),
             style: ICON_STYLE,
@@ -35,10 +36,11 @@ class IpIndicator extends PanelMenu.Button {
         }));
 
         /* -------- Internal state -------- */
-        this._cachedIps = [];     // last scan results
-        this._cacheTime = 0;      // epoch ms of last scan
         this._scanning  = false;  // true while a scan subprocess is running
         this._currentProc = null; // reference to current subprocess
+
+        // Load cached data from settings
+        this._loadCacheFromSettings();
 
         this._buildMenu(this._cachedIps, /*loading*/ false);
 
@@ -73,6 +75,8 @@ class IpIndicator extends PanelMenu.Button {
 
         this._scanning = true;
         this._cachedIps = []; // Clear previous results
+        this._cacheTime = 0;  // Reset cache time
+        this._saveCacheToSettings(); // Clear persistent cache
         this._buildMenu(this._cachedIps, /*loading*/ true);
 
         this._currentProc = Gio.Subprocess.new(
@@ -114,6 +118,8 @@ class IpIndicator extends PanelMenu.Button {
                     if (/^\d{1,3}(\.\d{1,3}){3}$/.test(trimmed)) {
                         this._insertIpSorted(trimmed);
                         this._cacheTime = Date.now();
+                        // Save to persistent storage
+                        this._saveCacheToSettings();
                         // Update menu immediately when we get a new IP
                         this._buildMenu(this._cachedIps, /*loading*/ true);
                     }
@@ -162,6 +168,28 @@ class IpIndicator extends PanelMenu.Button {
 
         // Insert at the correct sorted position
         this._cachedIps.splice(lo, 0, ip);
+    }
+
+    /* ------------- Cache persistence methods ------------- */
+    _loadCacheFromSettings() {
+        try {
+            const cachedIpsJson = this._settings.get_string('cached-ips');
+            this._cachedIps = JSON.parse(cachedIpsJson) || [];
+            this._cacheTime = this._settings.get_uint64('cache-time');
+        } catch (e) {
+            // If parsing fails, use empty defaults
+            this._cachedIps = [];
+            this._cacheTime = 0;
+        }
+    }
+
+    _saveCacheToSettings() {
+        try {
+            this._settings.set_string('cached-ips', JSON.stringify(this._cachedIps));
+            this._settings.set_uint64('cache-time', this._cacheTime);
+        } catch (e) {
+            logError(e, 'Failed to save cache to settings');
+        }
     }
 
     /* ------------- Build the popup menu ------------- */
@@ -225,6 +253,10 @@ function enable () {
 
 function disable () {
     if (_indicator) {
+        // Cancel any running scan
+        if (_indicator._scanning) {
+            _indicator._cancelScan();
+        }
         _indicator.destroy();
         _indicator = null;
     }
