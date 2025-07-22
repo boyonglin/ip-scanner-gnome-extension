@@ -28,15 +28,6 @@ class IpIndicator extends PanelMenu.Button {
     _init() {
         super._init(0.5, 'IP Scanner Indicator'); // 0.5 = center-align menu arrow
 
-        // Right-click to open preferences
-        this.connect('button-press-event', (_actor, event) => {
-            if (event.get_button() === 3) {
-                ExtensionUtils.openPrefs();
-                return GLib.SOURCE_STOP;
-            }
-            return GLib.SOURCE_CONTINUE;
-        });
-
         this.add_child(new St.Icon({
             gicon: Gio.icon_new_for_string(INDICATOR_ICON),
             style: ICON_STYLE,
@@ -56,6 +47,22 @@ class IpIndicator extends PanelMenu.Button {
             if (isOpen)
                 this._buildMenu(this._cachedIps, /*loading*/ this._scanning);
         });
+    }
+
+    // Override the event handling to properly separate left/right clicks
+    vfunc_event(event) {
+        if (event.type() === imports.gi.Clutter.EventType.BUTTON_PRESS) {
+            if (event.get_button() === 3) {
+                // Right-click: open preferences only
+                ExtensionUtils.openPrefs();
+                return imports.gi.Clutter.EVENT_STOP;
+            } else if (event.get_button() === 1) {
+                // Left-click: toggle menu
+                this.menu.toggle();
+                return imports.gi.Clutter.EVENT_STOP;
+            }
+        }
+        return super.vfunc_event(event);
     }
 
     /* ---------------- Manual scan (invoked by Refresh) ---------------- */
