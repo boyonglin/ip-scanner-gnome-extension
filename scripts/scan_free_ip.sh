@@ -17,6 +17,14 @@ end_host=$(gsettings get "$SCHEMA" candidate-end | awk '{print $NF}')
 
 # Build candidates array from prefix and range
 candidates=( $(seq -f "${prefix}%g" $start_host $end_host) )
+
+# Remove self IP from candidates to avoid conflicts
+self_ip=$(ip route get 8.8.8.8 \
+  | awk '/src/ { print $7; exit }')
+candidates=( $(
+  printf '%s\n' "${candidates[@]}" \
+  | grep -v -x "$self_ip"
+) )
 # ------------------------------------------------
 
 # Ping options
@@ -24,6 +32,7 @@ candidates=( $(seq -f "${prefix}%g" $start_host $end_host) )
 # -W0.3 : 0.3s timeout (GNU ping; adjust if busybox)
 # -I <ip> : source address
 PING_OPTS="-c1 -W0.3 -I"
+MAX_JOBS=12
 
 ## ---------- Phase 1: Add alias, test outbound ----------
 scan_one() {

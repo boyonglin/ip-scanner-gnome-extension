@@ -1,4 +1,4 @@
-// GNOME Shell extension — IP Scanner Indicator (async, run‑on‑open)
+// GNOME Shell extension — IP Scanner Indicator
 // Drop both extension.js and scan_free_ip.sh in:
 //   ~/.local/share/gnome-shell/extensions/ip-scanner@local/
 // Set NOPASSWD: sudo visudo -f /etc/sudoers.d/ipscanner
@@ -47,6 +47,7 @@ class IpIndicator extends PanelMenu.Button {
         this._cachedIps = [];     // last scan results
         this._cacheTime = 0;      // epoch ms of last scan
         this._scanning  = false;  // true while a scan subprocess is running
+        this._currentProc = null; // reference to current subprocess
 
         this._buildMenu(this._cachedIps, /*loading*/ false);
 
@@ -67,16 +68,31 @@ class IpIndicator extends PanelMenu.Button {
         this._cachedIps = []; // Clear previous results
         this._buildMenu(this._cachedIps, /*loading*/ true);
 
-        const proc = Gio.Subprocess.new(
+        this._currentProc = Gio.Subprocess.new(
             [script],
             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
         );
 
         // Read output line by line to get incremental updates
-        const stdoutStream = proc.get_stdout_pipe();
+        const stdoutStream = this._currentProc.get_stdout_pipe();
         const dataInputStream = Gio.DataInputStream.new(stdoutStream);
 
-        this._readOutputAsync(dataInputStream, proc);
+        this._readOutputAsync(dataInputStream, this._currentProc);
+    }
+
+    _cancelScan() {
+        // Terminate the subprocess if it's running
+        if (this._currentProc) {
+            try {
+                this._currentProc.force_exit();
+            } catch (e) {
+                // Process might already be finished
+            }
+            this._currentProc = null;
+        }
+        
+        this._scanning = false;
+        this._buildMenu(this._cachedIps, /*loading*/ false);
     }
 
     _readOutputAsync(dataInputStream, proc) {
@@ -105,6 +121,7 @@ class IpIndicator extends PanelMenu.Button {
                         } catch (e) {
                             logError(e, 'IP‑Scanner subprocess failed');
                         } finally {
+                            this._currentProc = null;
                             this._scanning = false;
                             this._buildMenu(this._cachedIps, /*loading*/ false);
                         }
@@ -145,8 +162,13 @@ class IpIndicator extends PanelMenu.Button {
         this.menu.removeAll();
 
         // Manual refresh trigger
-        this.menu.addAction('Refresh', () => {
-            if (!this._scanning) this._scanAsync();
+        const refreshText = this._scanning ? 'Cancel Scan' : 'Refresh';
+        this.menu.addAction(refreshText, () => {
+            if (this._scanning) {
+                this._cancelScan();
+            } else {
+                this._scanAsync();
+            }
         });
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
@@ -176,7 +198,7 @@ class IpIndicator extends PanelMenu.Button {
         // Cache has expired: show stale data but warn user
         if (expired) {
             this.menu.addMenuItem(
-                new PopupMenu.PopupMenuItem('Cache > 24 h — Refresh to update', { reactive: false })
+                new PopupMenu.PopupMenuItem('Refresh to update (> 24 h)', { reactive: false })
             );
         }
 
