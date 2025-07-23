@@ -1,5 +1,5 @@
 // GNOME Shell extension — IP Scanner Indicator
-// Set NOPASSWD: sudo visudo -f /etc/sudoers.d/ipscanner
+// Set NOPASSWD: use Polkit or sudo policy (one-time setup)
 // ------------------------------------------------------------
 
 'use strict';
@@ -10,6 +10,7 @@ const PanelMenu      = imports.ui.panelMenu;
 const PopupMenu      = imports.ui.popupMenu;
 const Clipboard      = St.Clipboard.get_default();
 const ExtensionUtils = imports.misc.extensionUtils;
+const Clutter = imports.gi.Clutter;
 
 /* ------------------ Tunable parameters ------------------ */
 const INDICATOR_ICON = 'applications-internet-symbolic';
@@ -53,15 +54,15 @@ class IpIndicator extends PanelMenu.Button {
 
     // Override the event handling to properly separate left/right clicks
     vfunc_event(event) {
-        if (event.type() === imports.gi.Clutter.EventType.BUTTON_PRESS) {
+        if (event.type() === Clutter.EventType.BUTTON_PRESS) {
             if (event.get_button() === 3) {
                 // Right-click: open preferences only
                 ExtensionUtils.openPrefs();
-                return imports.gi.Clutter.EVENT_STOP;
+                return Clutter.EVENT_STOP;
             } else if (event.get_button() === 1) {
                 // Left-click: toggle menu
                 this.menu.toggle();
-                return imports.gi.Clutter.EVENT_STOP;
+                return Clutter.EVENT_STOP;
             }
         }
         return super.vfunc_event(event);
@@ -72,16 +73,28 @@ class IpIndicator extends PanelMenu.Button {
         const script = _scriptPath();
         if (!GLib.file_test(script, GLib.FileTest.EXISTS | GLib.FileTest.IS_EXECUTABLE))
             return;
-
+        
         this._scanning = true;
         this._cachedIps = []; // Clear previous results
         this._cacheTime = 0;  // Reset cache time
         this._saveCacheToSettings(); // Clear persistent cache
         this._buildMenu(this._cachedIps, /*loading*/ true);
 
+        const s = this._settings;
+        const args = [
+        'pkexec', script,
+        '--iface',   s.get_string('iface'),
+        '--netmask', s.get_string('netmask'),
+        '--gateway', s.get_string('gateway'),
+        '--dns',     s.get_string('dns'),
+        '--prefix',  s.get_string('prefix'),
+        '--range',   `${s.get_uint('candidate-start')}-${s.get_uint('candidate-end')}`,
+        ];
+
         this._currentProc = Gio.Subprocess.new(
-            [script],
-            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+            args,
+            Gio.SubprocessFlags.STDOUT_PIPE |
+            Gio.SubprocessFlags.STDERR_PIPE
         );
 
         // Read output line by line to get incremental updates

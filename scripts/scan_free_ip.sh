@@ -1,30 +1,25 @@
 #!/usr/bin/env bash
 # Scan IP range and list usable static IP addresses with parallel processing
-# to prevent GNOME Shell UI blocking and ensure responsive operation.
-# ------------------ User parameters (from preferences) ------------------
-SCHEMA="org.gnome.shell.extensions.ip-scanner"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Read settings from GSettings with explicit schema directory
-export GSETTINGS_SCHEMA_DIR="$(dirname "$SCRIPT_DIR")/schemas"
-iface=$(gsettings get "$SCHEMA" iface | tr -d "'" | tr -d '"')
-netmask=$(gsettings get "$SCHEMA" netmask | tr -d "'" | tr -d '"')
-gateway=$(gsettings get "$SCHEMA" gateway | tr -d "'" | tr -d '"')
-dns_test=$(gsettings get "$SCHEMA" dns | tr -d "'" | tr -d '"')
-prefix=$(gsettings get "$SCHEMA" prefix | tr -d "'" | tr -d '"')
-start_host=$(gsettings get "$SCHEMA" candidate-start | awk '{print $NF}')
-end_host=$(gsettings get "$SCHEMA" candidate-end | awk '{print $NF}')
+# ------------------ User parameters ------------------
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --iface)   iface=$2;     shift 2 ;;
+    --netmask) netmask=$2;   shift 2 ;;
+    --gateway) gateway=$2;   shift 2 ;;
+    --dns)     dns_test=$2;  shift 2 ;;
+    --prefix)  prefix=$2;    shift 2 ;;
+    --range)   IFS=- read -r start_host end_host <<< "$2"; shift 2 ;;
+    --) shift; break ;;
+    *) echo "Unknown flag: $1"; exit 1 ;;
+  esac
+done
 
 # Build candidates array from prefix and range
 candidates=( $(seq -f "${prefix}%g" $start_host $end_host) )
 
 # Remove self IP from candidates to avoid conflicts
-self_ip=$(ip route get 8.8.8.8 \
-  | awk '/src/ { print $7; exit }')
-candidates=( $(
-  printf '%s\n' "${candidates[@]}" \
-  | grep -v -x "$self_ip"
-) )
+self_ip=$(ip route get 8.8.8.8 | awk '/src/ { print $7; exit }')
+candidates=( $(printf '%s\n' "${candidates[@]}" | grep -v -x "$self_ip") )
 # ------------------------------------------------
 
 # Ping options
@@ -38,7 +33,7 @@ MAX_JOBS=12
 scan_one() {
     local ip=$1
     # Add a temporary secondary IP alias
-    sudo ip addr add "${ip}${netmask}" dev "$iface" label "${iface}:probe" 2>/dev/null || return
+    ip addr add "${ip}${netmask}" dev "$iface" label "${iface}:probe" 2>/dev/null || return
 
     # Test gateway and external DNS reachability
     if ping $PING_OPTS "$ip" "$gateway" &>/dev/null &&
@@ -47,7 +42,7 @@ scan_one() {
     fi
 
     # Clean up alias
-    sudo ip addr del "${ip}${netmask}" dev "$iface"
+    ip addr del "${ip}${netmask}" dev "$iface"
 }
 
 export -f scan_one
