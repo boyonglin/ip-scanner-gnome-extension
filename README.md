@@ -23,18 +23,25 @@ This GNOME Shell extension adds an indicator to the top panel to scan for and di
     chmod +x ~/.local/share/gnome-shell/extensions/ip-scanner@local/scripts/scan_free_ip.sh
     ```
 
-4.  **Configure passwordless `sudo`:**
-    The extension requires `sudo` to temporarily add IP aliases for testing connectivity.
+4.  **Configure passwordless `pkexec`:**
+    The extension requires `pkexec` to temporarily add IP aliases for testing connectivity.
 
-    Create a new file for `sudoers`:
+    Create a new file for `polkit`:
     ```bash
-    sudo visudo -f /etc/sudoers.d/ipscanner
+    sudo nano /etc/polkit-1/localauthority/50-local.d/90-ip-scanner.pkla
     ```
 
-    Add the following line, replacing `YOUR_USERNAME` with your username:
+    Add the following lines, which allow members of the `sudo` group to run the script without a password prompt:
     ```
-    YOUR_USERNAME ALL=(ALL) NOPASSWD: /home/YOUR_USERNAME/.local/share/gnome-shell/extensions/ip-scanner@local/scripts/scan_free_ip.sh
+    [Allow ip-scanner scan]
+    Identity=unix-group:sudo
+    Action=org.freedesktop.policykit.exec
+    ResultAny=yes
+    ResultActive=yes
+    ResultInactive=yes
     ```
+
+    Save the file and log out and back in to apply the changes.
 
 5.  **Enable the extension:**
     *   Use the GNOME Extensions application to enable "IP Scanner".
@@ -50,8 +57,8 @@ To access the preferences, open the GNOME Extensions application and find "IP Sc
 
 The following options are available:
 
-*   **Network Interface**: Network interface name (e.g., `eth0`, `wlan0`).
-*   **Netmask**: Network subnet mask (e.g., `/24`).
+*   **Network Interface**: Network interface name.
+*   **Netmask**: Network subnet mask.
 *   **Gateway**: Network gateway address.
 *   **DNS**: Public DNS server for connectivity testing.
 *   **IP Prefix**: IP address prefix to scan (e.g., `192.168.15.`).

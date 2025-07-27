@@ -1,5 +1,5 @@
 // GNOME Shell extension — IP Scanner Indicator
-// Set NOPASSWD: use Polkit or sudo policy (one-time setup)
+// Set NOPASSWD: use Polkit policy (one-time setup)
 // ------------------------------------------------------------
 
 'use strict';
@@ -73,7 +73,7 @@ class IpIndicator extends PanelMenu.Button {
         const script = _scriptPath();
         if (!GLib.file_test(script, GLib.FileTest.EXISTS | GLib.FileTest.IS_EXECUTABLE))
             return;
-        
+
         this._scanning = true;
         this._cachedIps = []; // Clear previous results
         this._cacheTime = 0;  // Reset cache time
@@ -114,7 +114,7 @@ class IpIndicator extends PanelMenu.Button {
             }
             this._currentProc = null;
         }
-        
+
         this._scanning = false;
         this._buildMenu(this._cachedIps, /*loading*/ false);
     }
